@@ -459,7 +459,7 @@ def main():
     # Custom stock list upload
     st.sidebar.subheader("Stock List")
     uploaded_file = st.sidebar.file_uploader(
-        "Upload Custom List (CSV/Excel: Symbol, Name)",
+        "Upload Custom (Symbol, Name)",
         type=["csv", "xlsx"],
         help="CSV or Excel file with 'symbol' and 'name' columns (Max 50MB, 9999 stocks)"
     )
