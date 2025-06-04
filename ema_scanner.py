@@ -456,7 +456,7 @@ def scan_ema_alignment(stock_list, timeframe, market):
     
     return pd.DataFrame(results) if results else pd.DataFrame()
 
-# Function to create formatted Excel file - FIXED VERSION
+# Function to create formatted Excel file - COMPLETELY FIXED VERSION
 def create_formatted_excel(df, filename):
     if df.empty:
         return None
@@ -468,67 +468,65 @@ def create_formatted_excel(df, filename):
     output = io.BytesIO()
     
     try:
-        # Use openpyxl engine
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            export_df.to_excel(writer, sheet_name='EMA Alignment Results', index=False)
-            
-            # Get the workbook and worksheet
-            workbook = writer.book
-            worksheet = writer.sheets['EMA Alignment Results']
-            
-            # Define colors and fills
-            green_font = Font(color="00008000", bold=True)  # Green
-            red_font = Font(color="00FF0000", bold=True)    # Red
-            green_fill = PatternFill(start_color="E8F5E8", end_color="E8F5E8", fill_type="solid")  # Light green background
-            red_fill = PatternFill(start_color="FFE8E8", end_color="FFE8E8", fill_type="solid")    # Light red background
-            header_font = Font(bold=True)
-            
-            # Format header row
-            for col in ['A', 'B', 'C', 'D']:
-                cell = worksheet[f'{col}1']
-                cell.font = header_font
-            
-            # Format the data rows
-            for row in range(2, len(export_df) + 2):  # Start from row 2, skip header
-                trend_value = worksheet[f'C{row}'].value
-                if trend_value == 'Bullish':
-                    # Color the entire row green for bullish stocks
-                    for col in ['A', 'B', 'C', 'D']:
-                        cell = worksheet[f'{col}{row}']
-                        cell.font = green_font
-                        cell.fill = green_fill
-                        # Fix the status display
-                        if col == 'D':
-                            cell.value = "Bullish"
-                elif trend_value == 'Bearish':
-                    # Color the entire row red for bearish stocks
-                    for col in ['A', 'B', 'C', 'D']:
-                        cell = worksheet[f'{col}{row}']
-                        cell.font = red_font
-                        cell.fill = red_fill
-                        # Fix the status display
-                        if col == 'D':
-                            cell.value = "Bearish"
-            
-            # Auto-adjust column widths
-            for column in worksheet.columns:
-                max_length = 0
-                column_letter = column[0].column_letter
-                for cell in column:
-                    try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                adjusted_width = min(max_length + 2, 50)
-                worksheet.column_dimensions[column_letter].width = adjusted_width
+        # Create a new workbook and worksheet
+        workbook = openpyxl.Workbook()
+        worksheet = workbook.active
+        worksheet.title = 'EMA Alignment Results'
+        
+        # Write headers
+        headers = ['Symbol', 'Company Name', 'Trend', 'Status']
+        for col_num, header in enumerate(headers, 1):
+            cell = worksheet.cell(row=1, column=col_num)
+            cell.value = header
+            cell.font = Font(bold=True)
+        
+        # Define colors and fills
+        green_font = Font(color="00008000", bold=True)  # Green
+        red_font = Font(color="00FF0000", bold=True)    # Red
+        green_fill = PatternFill(start_color="E8F5E8", end_color="E8F5E8", fill_type="solid")  # Light green background
+        red_fill = PatternFill(start_color="FFE8E8", end_color="FFE8E8", fill_type="solid")    # Light red background
+        
+        # Write data rows
+        for row_num, (_, row_data) in enumerate(export_df.iterrows(), 2):
+            for col_num, value in enumerate(row_data, 1):
+                cell = worksheet.cell(row=row_num, column=col_num)
+                
+                # Set cell value
+                if col_num == 4:  # Status column
+                    cell.value = row_data['Trend']  # Use trend name instead of emoji
+                else:
+                    cell.value = value
+                
+                # Apply formatting based on trend
+                if row_data['Trend'] == 'Bullish':
+                    cell.font = green_font
+                    cell.fill = green_fill
+                elif row_data['Trend'] == 'Bearish':
+                    cell.font = red_font
+                    cell.fill = red_fill
+        
+        # Auto-adjust column widths
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+        
+        # Save to BytesIO
+        workbook.save(output)
+        output.seek(0)
+        
+        return output
     
     except Exception as e:
         st.error(f"Error creating Excel file: {e}")
         return None
-    
-    output.seek(0)
-    return output
 
 # Main application
 def main():
