@@ -17,6 +17,178 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Modern UI styling with blue theme
+st.markdown("""
+<style>
+    /* Overall page styling */
+    .main {
+        background-color: #f8f9fa;
+        padding: 2rem;
+    }
+    
+    /* Headers */
+    h1 {
+        color: #0d4b9f;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    h2, h3 {
+        color: #334155;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 600;
+    }
+    
+    /* Containers */
+    .stApp {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff;
+        border-right: 1px solid #e2e8f0;
+        padding: 2rem 1rem;
+    }
+    
+    section[data-testid="stSidebar"] > div {
+        padding-top: 0;
+    }
+    
+    section[data-testid="stSidebar"] h2 {
+        margin-top: 0;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background-color: #1e40af;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+    
+    .stButton > button:hover {
+        background-color: #1e3a8a;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    /* DataFrames */
+    .dataframe {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    }
+    
+    .dataframe th {
+        background-color: #f1f5f9;
+        color: #334155;
+        font-weight: 600;
+        border: none !important;
+        text-align: left !important;
+    }
+    
+    .dataframe td {
+        border-bottom: 1px solid #e2e8f0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        text-align: left !important;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        padding: 1rem 1.5rem;
+        border: none;
+        border-bottom: 2px solid transparent;
+        font-weight: 500;
+        color: #64748b;
+        background-color: transparent;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        border-bottom: 2px solid #1e40af !important;
+        color: #1e40af !important;
+        background-color: transparent !important;
+    }
+    
+    /* Radio buttons */
+    div[role="radiogroup"] label {
+        background-color: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        margin-right: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    div[role="radiogroup"] label:hover {
+        border-color: #cbd5e1;
+        background-color: #f8fafc;
+    }
+    
+    div[role="radiogroup"] [data-baseweb="radio"] input:checked + div {
+        border-color: #2e7d32;
+        background-color: #e8f5e9;
+    }
+    
+    /* Select boxes */
+    div[data-baseweb="select"] > div {
+        border-radius: 6px !important;
+        border-color: #e2e8f0 !important;
+        background-color: white;
+    }
+    
+    div[data-baseweb="select"] > div:hover {
+        border-color: #cbd5e1 !important;
+    }
+    
+    /* Info boxes */
+    .stAlert {
+        border-radius: 6px;
+    }
+    
+    /* Fix for dark mode */
+    @media (prefers-color-scheme: dark) {
+        .stApp, body, [data-testid="stAppViewContainer"] {
+            background-color: #0e1117;
+        }
+        
+        h1, h2, h3, p, span, div {
+            color: #f8f9fa;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            color: #f8f9fa;
+        }
+        
+        section[data-testid="stSidebar"] {
+            background-color: #262730;
+            border-right: 1px solid #4b5563;
+        }
+        
+        .dataframe th {
+            background-color: #1e293b;
+            color: #f8f9fa;
+        }
+        
+        .dataframe td {
+            border-bottom: 1px solid #4b5563 !important;
+            color: #f8f9fa;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Define stock markets data
 us_indices = {
     'S&P 500': '^GSPC',
