@@ -189,6 +189,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 # Define stock markets data
 us_indices = {
     'S&P 500': '^GSPC',
@@ -456,7 +457,7 @@ def scan_ema_alignment(stock_list, timeframe, market):
     
     return pd.DataFrame(results) if results else pd.DataFrame()
 
-# Function to create formatted Excel file - COMPLETELY FIXED VERSION
+# Function to create formatted Excel file
 def create_formatted_excel(df, filename):
     if df.empty:
         return None
@@ -698,7 +699,7 @@ def main():
                 display_df = bullish_stocks[['Symbol', 'Company Name', 'Trend', 'Status']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
-                # Download button for bullish stocks - FIXED EXCEL
+                # Download button for bullish stocks - Excel format
                 excel_file = create_formatted_excel(bullish_stocks, f"bullish_stocks_{st.session_state.market}_{st.session_state.timeframe}")
                 if excel_file:
                     st.download_button(
@@ -717,7 +718,7 @@ def main():
                 display_df = bearish_stocks[['Symbol', 'Company Name', 'Trend', 'Status']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
-                # Download button for bearish stocks - FIXED EXCEL
+                # Download button for bearish stocks - Excel format
                 excel_file = create_formatted_excel(bearish_stocks, f"bearish_stocks_{st.session_state.market}_{st.session_state.timeframe}")
                 if excel_file:
                     st.download_button(
@@ -730,7 +731,7 @@ def main():
             else:
                 st.info("No stocks found with perfect bearish EMA alignment.")
         
-        # Download all results button - FIXED EXCEL
+        # Download all results button - Excel format
         if not st.session_state.results_df.empty:
             st.subheader("Download All Results")
             excel_file = create_formatted_excel(st.session_state.results_df, f"ema_alignment_results_{st.session_state.market}_{st.session_state.timeframe}")
