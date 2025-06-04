@@ -17,178 +17,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Modern UI styling with blue theme
-st.markdown("""
-<style>
-    /* Overall page styling */
-    .main {
-        background-color: #f8f9fa;
-        padding: 2rem;
-    }
-    
-    /* Headers */
-    h1 {
-        color: #0d4b9f;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-weight: 700;
-        font-size: 2.5rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    h2, h3 {
-        color: #334155;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-weight: 600;
-    }
-    
-    /* Containers */
-    .stApp {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-    
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 1px solid #e2e8f0;
-        padding: 2rem 1rem;
-    }
-    
-    section[data-testid="stSidebar"] > div {
-        padding-top: 0;
-    }
-    
-    section[data-testid="stSidebar"] h2 {
-        margin-top: 0;
-    }
-    
-    /* Buttons */
-    .stButton > button {
-        background-color: #1e40af;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        padding: 0.75rem 1.5rem;
-        font-weight: 600;
-        transition: all 0.2s ease;
-        width: 100%;
-    }
-    
-    .stButton > button:hover {
-        background-color: #1e3a8a;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    }
-    
-    /* DataFrames */
-    .dataframe {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-    }
-    
-    .dataframe th {
-        background-color: #f1f5f9;
-        color: #334155;
-        font-weight: 600;
-        border: none !important;
-        text-align: left !important;
-    }
-    
-    .dataframe td {
-        border-bottom: 1px solid #e2e8f0 !important;
-        border-left: none !important;
-        border-right: none !important;
-        text-align: left !important;
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 0;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        padding: 1rem 1.5rem;
-        border: none;
-        border-bottom: 2px solid transparent;
-        font-weight: 500;
-        color: #64748b;
-        background-color: transparent;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        border-bottom: 2px solid #1e40af !important;
-        color: #1e40af !important;
-        background-color: transparent !important;
-    }
-    
-    /* Radio buttons */
-    div[role="radiogroup"] label {
-        background-color: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        padding: 0.5rem 1rem;
-        margin-right: 0.5rem;
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-    
-    div[role="radiogroup"] label:hover {
-        border-color: #cbd5e1;
-        background-color: #f8fafc;
-    }
-    
-    div[role="radiogroup"] [data-baseweb="radio"] input:checked + div {
-        border-color: #2e7d32;
-        background-color: #e8f5e9;
-    }
-    
-    /* Select boxes */
-    div[data-baseweb="select"] > div {
-        border-radius: 6px !important;
-        border-color: #e2e8f0 !important;
-        background-color: white;
-    }
-    
-    div[data-baseweb="select"] > div:hover {
-        border-color: #cbd5e1 !important;
-    }
-    
-    /* Info boxes */
-    .stAlert {
-        border-radius: 6px;
-    }
-    
-    /* Fix for dark mode */
-    @media (prefers-color-scheme: dark) {
-        .stApp, body, [data-testid="stAppViewContainer"] {
-            background-color: #0e1117;
-        }
-        
-        h1, h2, h3, p, span, div {
-            color: #f8f9fa;
-        }
-        
-        .stTabs [data-baseweb="tab"] {
-            color: #f8f9fa;
-        }
-        
-        section[data-testid="stSidebar"] {
-            background-color: #262730;
-            border-right: 1px solid #4b5563;
-        }
-        
-        .dataframe th {
-            background-color: #1e293b;
-            color: #f8f9fa;
-        }
-        
-        .dataframe td {
-            border-bottom: 1px solid #4b5563 !important;
-            color: #f8f9fa;
-        }
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # Define stock markets data
 us_indices = {
     'S&P 500': '^GSPC',
@@ -208,8 +36,8 @@ def sanitize_symbol(symbol):
     if not isinstance(symbol, str):
         return ""
     
-    # Allow only alphanumeric characters, dots, and hyphens
-    sanitized = re.sub(r'[^A-Za-z0-9.\-]', '', str(symbol).strip())
+    # Allow only alphanumeric characters, dots, hyphens, and ^ for indices
+    sanitized = re.sub(r'[^A-Za-z0-9.\-^]', '', str(symbol).strip())
     
     # Limit length to prevent abuse
     sanitized = sanitized[:20]
@@ -435,8 +263,9 @@ def scan_ema_alignment(stock_list, timeframe, market):
         trend, status_emoji = check_ema_alignment(df)
         
         if trend:  # Only add if bullish or bearish alignment found
-            # Remove .NS suffix for display
+            # Remove .NS suffix and ^ symbol for display
             display_symbol = symbol.replace('.NS', '') if symbol.endswith('.NS') else symbol
+            display_symbol = display_symbol.replace('^', '') if display_symbol.startswith('^') else display_symbol
             
             results.append({
                 'Symbol': display_symbol,
@@ -455,7 +284,7 @@ def scan_ema_alignment(stock_list, timeframe, market):
     
     return pd.DataFrame(results) if results else pd.DataFrame()
 
-# Function to create formatted Excel file
+# Function to create formatted Excel file - FIXED VERSION
 def create_formatted_excel(df, filename):
     if df.empty:
         return None
@@ -466,53 +295,59 @@ def create_formatted_excel(df, filename):
     # Create Excel file in memory
     output = io.BytesIO()
     
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        export_df.to_excel(writer, sheet_name='EMA Alignment Results', index=False)
-        
-        # Get the workbook and worksheet
-        workbook = writer.book
-        worksheet = writer.sheets['EMA Alignment Results']
-        
-        # Define colors and fills
-        green_font = Font(color="00008000", bold=True)  # Green
-        red_font = Font(color="00FF0000", bold=True)    # Red
-        green_fill = PatternFill(start_color="E8F5E8", end_color="E8F5E8", fill_type="solid")  # Light green background
-        red_fill = PatternFill(start_color="FFE8E8", end_color="FFE8E8", fill_type="solid")    # Light red background
-        
-        # Format the data rows
-        for row in range(2, len(export_df) + 2):  # Start from row 2, skip header
-            trend_value = worksheet[f'C{row}'].value
-            if trend_value == 'Bullish':
-                # Color the entire row green for bullish stocks
-                for col in ['A', 'B', 'C', 'D']:
-                    cell = worksheet[f'{col}{row}']
-                    cell.font = green_font
-                    cell.fill = green_fill
-                    # Fix the status emoji display issue
-                    if col == 'D':
-                        cell.value = "🟢 Bullish"
-            elif trend_value == 'Bearish':
-                # Color the entire row red for bearish stocks
-                for col in ['A', 'B', 'C', 'D']:
-                    cell = worksheet[f'{col}{row}']
-                    cell.font = red_font
-                    cell.fill = red_fill
-                    # Fix the status emoji display issue
-                    if col == 'D':
-                        cell.value = "🔴 Bearish"
-        
-        # Auto-adjust column widths
-        for column in worksheet.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = min(max_length + 2, 50)
-            worksheet.column_dimensions[column_letter].width = adjusted_width
+    # Use xlsxwriter engine for better Excel compatibility
+    try:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            export_df.to_excel(writer, sheet_name='EMA Alignment Results', index=False)
+            
+            # Get the workbook and worksheet
+            workbook = writer.book
+            worksheet = writer.sheets['EMA Alignment Results']
+            
+            # Define colors and fills
+            green_font = Font(color="00008000", bold=True)  # Green
+            red_font = Font(color="00FF0000", bold=True)    # Red
+            green_fill = PatternFill(start_color="E8F5E8", end_color="E8F5E8", fill_type="solid")  # Light green background
+            red_fill = PatternFill(start_color="FFE8E8", end_color="FFE8E8", fill_type="solid")    # Light red background
+            
+            # Format the data rows
+            for row in range(2, len(export_df) + 2):  # Start from row 2, skip header
+                trend_value = worksheet[f'C{row}'].value
+                if trend_value == 'Bullish':
+                    # Color the entire row green for bullish stocks
+                    for col in ['A', 'B', 'C', 'D']:
+                        cell = worksheet[f'{col}{row}']
+                        cell.font = green_font
+                        cell.fill = green_fill
+                        # Fix the status emoji display issue
+                        if col == 'D':
+                            cell.value = "Bullish"
+                elif trend_value == 'Bearish':
+                    # Color the entire row red for bearish stocks
+                    for col in ['A', 'B', 'C', 'D']:
+                        cell = worksheet[f'{col}{row}']
+                        cell.font = red_font
+                        cell.fill = red_fill
+                        # Fix the status emoji display issue
+                        if col == 'D':
+                            cell.value = "Bearish"
+            
+            # Auto-adjust column widths
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    except Exception as e:
+        st.error(f"Error creating Excel file: {e}")
+        return None
     
     output.seek(0)
     return output
@@ -687,12 +522,12 @@ def main():
                 display_df = bullish_stocks[['Symbol', 'Company Name', 'Trend', 'Status']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
-                # Download button for bullish stocks
+                # Download button for bullish stocks - FIXED
                 excel_file = create_formatted_excel(bullish_stocks, f"bullish_stocks_{st.session_state.market}_{st.session_state.timeframe}")
                 if excel_file:
                     st.download_button(
                         label="📥 Download Bullish Stocks (Excel)",
-                        data=excel_file.getvalue(),
+                        data=excel_file,
                         file_name=f"bullish_stocks_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
@@ -705,26 +540,26 @@ def main():
                 display_df = bearish_stocks[['Symbol', 'Company Name', 'Trend', 'Status']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
-                # Download button for bearish stocks
+                # Download button for bearish stocks - FIXED
                 excel_file = create_formatted_excel(bearish_stocks, f"bearish_stocks_{st.session_state.market}_{st.session_state.timeframe}")
                 if excel_file:
                     st.download_button(
                         label="📥 Download Bearish Stocks (Excel)",
-                        data=excel_file.getvalue(),
+                        data=excel_file,
                         file_name=f"bearish_stocks_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
             else:
                 st.info("No stocks found with perfect bearish EMA alignment.")
         
-        # Download all results button
+        # Download all results button - FIXED
         if not st.session_state.results_df.empty:
             st.subheader("Download All Results")
             excel_file = create_formatted_excel(st.session_state.results_df, f"ema_alignment_results_{st.session_state.market}_{st.session_state.timeframe}")
             if excel_file:
                 st.download_button(
                     label="📥 Download All Results (Excel)",
-                    data=excel_file.getvalue(),
+                    data=excel_file,
                     file_name=f"ema_alignment_results_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
