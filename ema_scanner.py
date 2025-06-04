@@ -7,6 +7,7 @@ import time
 import io
 import openpyxl
 from openpyxl.styles import Font, PatternFill
+import re
 
 # Page configuration
 st.set_page_config(
@@ -201,82 +202,139 @@ india_indices = {
     'NIFTY BANK': '^NSEBANK'
 }
 
+# Function to sanitize symbols
+def sanitize_symbol(symbol):
+    """Sanitize stock symbols to prevent injection attacks"""
+    if not isinstance(symbol, str):
+        return ""
+    
+    # Allow only alphanumeric characters, dots, and hyphens
+    sanitized = re.sub(r'[^A-Za-z0-9.\-]', '', str(symbol).strip())
+    
+    # Limit length to prevent abuse
+    sanitized = sanitized[:20]
+    
+    return sanitized
+
+# Function to sanitize company names
+def sanitize_name(name):
+    """Sanitize company names to prevent injection attacks"""
+    if not isinstance(name, str):
+        return ""
+    
+    # Allow alphanumeric, spaces, common punctuation
+    sanitized = re.sub(r'[^A-Za-z0-9\s\.,&\-\(\)]', '', str(name).strip())
+    
+    # Limit length to prevent abuse
+    sanitized = sanitized[:200]
+    
+    return sanitized
+
 # Function to load stock lists
 @st.cache_data(ttl=86400)
 def load_stock_lists():
-    # Load US Stocks from CSV
+    # Load US Stocks from Excel
     try:
-        us_stocks = pd.read_csv('data/us_stocks.csv')
-        if not all(col in us_stocks.columns for col in ['symbol', 'name']):
-            us_stocks = us_stocks.rename(columns={
-                'Symbol': 'symbol',
-                'Company': 'name'
-            })
+        us_stocks = pd.read_excel('data/us_stocks.xlsx')
+        if not all(col in us_stocks.columns for col in ['Symbol', 'Company Name']):
+            # Try alternative column names
+            column_mapping = {}
+            for col in us_stocks.columns:
+                if col.lower() in ['symbol', 'ticker', 'stock']:
+                    column_mapping[col] = 'Symbol'
+                elif col.lower() in ['name', 'company', 'company name', 'stock name']:
+                    column_mapping[col] = 'Company Name'
+            
+            if column_mapping:
+                us_stocks = us_stocks.rename(columns=column_mapping)
     except Exception as e:
-        st.warning(f"Failed to load US stocks CSV: {e}. Using default list.")
+        st.warning(f"Failed to load US stocks Excel: {e}. Using default list.")
         us_stocks = pd.DataFrame({
-            'symbol': ['AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'NVDA', 'JPM', 'V', 'WMT'],
-            'name': ['Apple', 'Microsoft', 'Amazon', 'Alphabet', 'Meta Platforms', 'Tesla', 'NVIDIA', 'JPMorgan Chase', 'Visa', 'Walmart']
+            'Symbol': ['AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA', 'NVDA', 'JPM', 'V', 'WMT'],
+            'Company Name': ['Apple', 'Microsoft', 'Amazon', 'Alphabet', 'Meta Platforms', 'Tesla', 'NVIDIA', 'JPMorgan Chase', 'Visa', 'Walmart']
         })
     
-    # Load Indian Stocks from CSV
+    # Load Indian Stocks from Excel
     try:
-        india_stocks = pd.read_csv('data/india_stocks.csv')
-        if not all(col in india_stocks.columns for col in ['symbol', 'name']):
-            india_stocks = india_stocks.rename(columns={
-                'Symbol': 'symbol',
-                'Company': 'name'
-            })
+        india_stocks = pd.read_excel('data/india_stocks.xlsx')
+        if not all(col in india_stocks.columns for col in ['Symbol', 'Company Name']):
+            # Try alternative column names
+            column_mapping = {}
+            for col in india_stocks.columns:
+                if col.lower() in ['symbol', 'ticker', 'stock']:
+                    column_mapping[col] = 'Symbol'
+                elif col.lower() in ['name', 'company', 'company name', 'stock name']:
+                    column_mapping[col] = 'Company Name'
+            
+            if column_mapping:
+                india_stocks = india_stocks.rename(columns=column_mapping)
         
         # Ensure Indian stock symbols have .NS suffix for API calls
-        india_stocks['symbol'] = india_stocks['symbol'].apply(
-            lambda x: x if str(x).endswith('.NS') else f"{x}.NS"
+        india_stocks['Symbol'] = india_stocks['Symbol'].apply(
+            lambda x: sanitize_symbol(x) if str(x).endswith('.NS') else f"{sanitize_symbol(x)}.NS"
         )
     except Exception as e:
-        st.warning(f"Failed to load India stocks CSV: {e}. Using default list.")
+        st.warning(f"Failed to load India stocks Excel: {e}. Using default list.")
         india_stocks = pd.DataFrame({
-            'symbol': ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS', 
+            'Symbol': ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS', 
                      'HINDUNILVR.NS', 'ITC.NS', 'SBIN.NS', 'BAJFINANCE.NS', 'BHARTIARTL.NS'],
-            'name': ['Reliance Industries', 'Tata Consultancy Services', 'HDFC Bank', 'Infosys', 
+            'Company Name': ['Reliance Industries', 'Tata Consultancy Services', 'HDFC Bank', 'Infosys', 
                     'ICICI Bank', 'Hindustan Unilever', 'ITC', 'State Bank of India', 
                     'Bajaj Finance', 'Bharti Airtel']
         })
+    
+    # Sanitize all symbols and names
+    us_stocks['Symbol'] = us_stocks['Symbol'].apply(sanitize_symbol)
+    us_stocks['Company Name'] = us_stocks['Company Name'].apply(sanitize_name)
+    india_stocks['Symbol'] = india_stocks['Symbol'].apply(sanitize_symbol)
+    india_stocks['Company Name'] = india_stocks['Company Name'].apply(sanitize_name)
+    
+    # Remove empty entries
+    us_stocks = us_stocks[(us_stocks['Symbol'].str.len() > 0) & (us_stocks['Company Name'].str.len() > 0)]
+    india_stocks = india_stocks[(india_stocks['Symbol'].str.len() > 0) & (india_stocks['Company Name'].str.len() > 0)]
     
     return us_stocks, india_stocks
 
 # Function to process uploaded stock list
 def process_uploaded_stock_list(uploaded_file, market):
     try:
-        # Read Excel or CSV file
-        if uploaded_file.name.endswith('.xlsx'):
-            stocks_df = pd.read_excel(uploaded_file)
-        else:
-            content = uploaded_file.read()
-            stocks_df = pd.read_csv(io.BytesIO(content))
+        # Read Excel file only
+        if not uploaded_file.name.endswith('.xlsx'):
+            st.error("Only Excel (.xlsx) files are supported")
+            return None
+            
+        stocks_df = pd.read_excel(uploaded_file)
         
         # Standardize column names (case-insensitive)
         column_mapping = {}
         for col in stocks_df.columns:
             if col.lower() in ['symbol', 'ticker', 'stock']:
-                column_mapping[col] = 'symbol'
+                column_mapping[col] = 'Symbol'
             elif col.lower() in ['name', 'company', 'company name', 'stock name']:
-                column_mapping[col] = 'name'
+                column_mapping[col] = 'Company Name'
         
         # Rename columns if needed
         if column_mapping:
             stocks_df = stocks_df.rename(columns=column_mapping)
         
         # Check if we have the required columns
-        if 'symbol' not in stocks_df.columns:
-            raise ValueError("File must contain a 'symbol' column")
+        if 'Symbol' not in stocks_df.columns:
+            raise ValueError("File must contain a 'Symbol' column")
         
         # If no name column exists, create one with symbol values
-        if 'name' not in stocks_df.columns:
-            stocks_df['name'] = stocks_df['symbol']
+        if 'Company Name' not in stocks_df.columns:
+            stocks_df['Company Name'] = stocks_df['Symbol']
+        
+        # Sanitize all data
+        stocks_df['Symbol'] = stocks_df['Symbol'].apply(sanitize_symbol)
+        stocks_df['Company Name'] = stocks_df['Company Name'].apply(sanitize_name)
+        
+        # Remove empty entries
+        stocks_df = stocks_df[(stocks_df['Symbol'].str.len() > 0) & (stocks_df['Company Name'].str.len() > 0)]
         
         # Ensure proper formatting for Indian stocks
         if market == "India":
-            stocks_df['symbol'] = stocks_df['symbol'].apply(
+            stocks_df['Symbol'] = stocks_df['Symbol'].apply(
                 lambda x: x if str(x).endswith('.NS') else f"{x}.NS"
             )
         
@@ -295,11 +353,20 @@ def process_uploaded_stock_list(uploaded_file, market):
 @st.cache_data(ttl=3600)
 def get_stock_data(symbol, timeframe):
     try:
+        # Sanitize symbol before API call
+        symbol = sanitize_symbol(symbol)
+        if not symbol:
+            return None
+            
         stock = yf.Ticker(symbol)
         
         # Set period based on timeframe
         if timeframe == "1d":
             period = "500d"
+        elif timeframe == "15m":
+            period = "30d"
+        elif timeframe == "1wk":
+            period = "7y"
         else:  # 1h
             period = "90d"
             
@@ -354,7 +421,7 @@ def scan_ema_alignment(stock_list, timeframe, market):
     total_stocks = len(stock_list)
     processed_count = 0
     
-    for i, (symbol, name) in enumerate(zip(stock_list['symbol'], stock_list['name'])):
+    for i, (symbol, name) in enumerate(zip(stock_list['Symbol'], stock_list['Company Name'])):
         status_text.text(f"Scanning {market} stocks: {i+1}/{total_stocks} - {name} ({symbol})")
         progress_bar.progress((i + 1) / total_stocks)
         
@@ -406,9 +473,11 @@ def create_formatted_excel(df, filename):
         workbook = writer.book
         worksheet = writer.sheets['EMA Alignment Results']
         
-        # Define colors
+        # Define colors and fills
         green_font = Font(color="00008000", bold=True)  # Green
         red_font = Font(color="00FF0000", bold=True)    # Red
+        green_fill = PatternFill(start_color="E8F5E8", end_color="E8F5E8", fill_type="solid")  # Light green background
+        red_fill = PatternFill(start_color="FFE8E8", end_color="FFE8E8", fill_type="solid")    # Light red background
         
         # Format the data rows
         for row in range(2, len(export_df) + 2):  # Start from row 2, skip header
@@ -416,11 +485,21 @@ def create_formatted_excel(df, filename):
             if trend_value == 'Bullish':
                 # Color the entire row green for bullish stocks
                 for col in ['A', 'B', 'C', 'D']:
-                    worksheet[f'{col}{row}'].font = green_font
+                    cell = worksheet[f'{col}{row}']
+                    cell.font = green_font
+                    cell.fill = green_fill
+                    # Fix the status emoji display issue
+                    if col == 'D':
+                        cell.value = "🟢 Bullish"
             elif trend_value == 'Bearish':
                 # Color the entire row red for bearish stocks
                 for col in ['A', 'B', 'C', 'D']:
-                    worksheet[f'{col}{row}'].font = red_font
+                    cell = worksheet[f'{col}{row}']
+                    cell.font = red_font
+                    cell.fill = red_fill
+                    # Fix the status emoji display issue
+                    if col == 'D':
+                        cell.value = "🔴 Bearish"
         
         # Auto-adjust column widths
         for column in worksheet.columns:
@@ -459,9 +538,9 @@ def main():
     # Custom stock list upload
     st.sidebar.subheader("Stock List")
     uploaded_file = st.sidebar.file_uploader(
-        "Upload Custom (Symbol, Name)",
-        type=["csv", "xlsx"],
-        help="CSV or Excel file with 'symbol' and 'name' columns (Max 50MB, 9999 stocks)"
+        "Upload Custom (Symbol, Company Name)",
+        type=["xlsx"],
+        help="Excel file with 'Symbol' and 'Company Name' columns (Max 50MB, 9999 stocks)"
     )
     
     # Process uploaded file if available
@@ -471,7 +550,7 @@ def main():
             st.sidebar.error("File size exceeds 50MB limit")
             st.session_state.using_custom_list = False
         else:
-            market_for_processing = st.session_state.get('market', "US")
+            market_for_processing = st.session_state.get('market', "India")
             custom_stocks = process_uploaded_stock_list(uploaded_file, market_for_processing)
             
             if custom_stocks is not None:
@@ -483,37 +562,41 @@ def main():
     else:
         st.session_state.using_custom_list = False
     
-    # Market selection
+    # Market selection - Default to India
     if st.session_state.using_custom_list:
         market = st.sidebar.selectbox(
             "Select Market (Disabled - Using Custom List)",
-            ["US", "India"],
+            ["India", "US"],
             disabled=True,
-            index=0 if st.session_state.get('market') == "US" else 1
+            index=0 if st.session_state.get('market', "India") == "India" else 1
         )
-        market = st.session_state.get('market', "US")
+        market = st.session_state.get('market', "India")
     else:
-        market = st.sidebar.selectbox("Select Market", ["US", "India"])
+        market = st.sidebar.selectbox("Select Market", ["India", "US"])
         st.session_state.market = market
     
-    # Timeframe selection - only Daily and Hourly
+    # Timeframe selection - Updated with new timeframes, Default to Daily
     timeframe_options = {
         "Daily": "1d",
-        "Hourly": "1h"
+        "Hourly": "1h",
+        "15 Minutes": "15m",
+        "Weekly": "1wk"
     }
-    timeframe_display = st.sidebar.selectbox("Select Timeframe", list(timeframe_options.keys()))
+    timeframe_display = st.sidebar.selectbox("Select Timeframe", list(timeframe_options.keys()), index=0)
     timeframe = timeframe_options[timeframe_display]
     
     # Scan button
     scan_button = st.sidebar.button("Start EMA Alignment Scan", use_container_width=True)
     
     # Display current market status data
-    indices = us_indices if market == "US" else india_indices
+    indices = india_indices if market == "India" else us_indices
     
     index_cols = [col1, col2, col3]
     for i, (index_name, index_symbol) in enumerate(indices.items()):
         try:
-            index_data = yf.Ticker(index_symbol).history(period="1d")
+            # Sanitize index symbol
+            sanitized_index_symbol = sanitize_symbol(index_symbol)
+            index_data = yf.Ticker(sanitized_index_symbol).history(period="1d")
             if not index_data.empty:
                 current = index_data['Close'].iloc[-1]
                 previous = index_data['Open'].iloc[-1]
@@ -536,7 +619,7 @@ def main():
         if st.session_state.using_custom_list:
             stocks_to_scan = st.session_state.custom_stocks
         else:
-            stocks_to_scan = us_stocks if market == "US" else india_stocks
+            stocks_to_scan = india_stocks if market == "India" else us_stocks
         
         with st.spinner(f"Scanning {market} stocks for EMA alignment on {timeframe_display} timeframe..."):
             results_df = scan_ema_alignment(stocks_to_scan, timeframe, market)
@@ -565,17 +648,20 @@ def main():
         - Perfect bearish alignment indicates strong downward momentum
         
         ### Timeframes Available
-        - **Daily**: Uses 500 days of data for precise EMA calculations
-        - **Hourly**: Uses 90 days of data for intraday analysis
+        - **Daily**: Uses 500 days of data for mid-term analysis
+        - **Hourly**: Uses 90 days of data for swing analysis
+        - **15 Minutes**: Uses 30 days of data for short-term analysis
+        - **Weekly**: Uses 7 years of data for long-term analysis
         
         ### Important Notes
         - All EMAs are calculated precisely using exponential weighting
         - Only stocks with perfect alignment are shown
         - Indian stock symbols display without .NS suffix in results
         - Export files are formatted with color coding (Green for Bullish, Red for Bearish)
+        - All data is sanitized for security
         
         ### Using Custom Stock Lists
-        - Upload CSV or Excel files with 'symbol' and 'name' columns
+        - Upload Excel files with 'Symbol' and 'Company Name' columns
         - Maximum 9999 stocks per list and 50MB file size
         - For Indian stocks, .NS suffix is automatically handled
         """)
