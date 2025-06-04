@@ -467,8 +467,8 @@ def create_formatted_excel(df, filename):
     # Create Excel file in memory
     output = io.BytesIO()
     
-    # Use xlsxwriter engine for better Excel compatibility
     try:
+        # Use openpyxl engine
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             export_df.to_excel(writer, sheet_name='EMA Alignment Results', index=False)
             
@@ -481,6 +481,12 @@ def create_formatted_excel(df, filename):
             red_font = Font(color="00FF0000", bold=True)    # Red
             green_fill = PatternFill(start_color="E8F5E8", end_color="E8F5E8", fill_type="solid")  # Light green background
             red_fill = PatternFill(start_color="FFE8E8", end_color="FFE8E8", fill_type="solid")    # Light red background
+            header_font = Font(bold=True)
+            
+            # Format header row
+            for col in ['A', 'B', 'C', 'D']:
+                cell = worksheet[f'{col}1']
+                cell.font = header_font
             
             # Format the data rows
             for row in range(2, len(export_df) + 2):  # Start from row 2, skip header
@@ -491,7 +497,7 @@ def create_formatted_excel(df, filename):
                         cell = worksheet[f'{col}{row}']
                         cell.font = green_font
                         cell.fill = green_fill
-                        # Fix the status emoji display issue
+                        # Fix the status display
                         if col == 'D':
                             cell.value = "Bullish"
                 elif trend_value == 'Bearish':
@@ -500,7 +506,7 @@ def create_formatted_excel(df, filename):
                         cell = worksheet[f'{col}{row}']
                         cell.font = red_font
                         cell.fill = red_fill
-                        # Fix the status emoji display issue
+                        # Fix the status display
                         if col == 'D':
                             cell.value = "Bearish"
             
@@ -582,14 +588,14 @@ def main():
         market = st.sidebar.selectbox("Select Market", ["India", "US"])
         st.session_state.market = market
     
-    # Timeframe selection - Updated with new timeframes, Default to Daily
+    # Timeframe selection 
     timeframe_options = {
+        "15 Minutes": "15m",
         "Daily": "1d",
         "Hourly": "1h",
-        "15 Minutes": "15m",
         "Weekly": "1wk"
     }
-    timeframe_display = st.sidebar.selectbox("Select Timeframe", list(timeframe_options.keys()), index=0)
+    timeframe_display = st.sidebar.selectbox("Select Timeframe", list(timeframe_options.keys()), index=1)  # Default to Daily
     timeframe = timeframe_options[timeframe_display]
     
     # Scan button
@@ -655,9 +661,9 @@ def main():
         - Perfect bearish alignment indicates strong downward momentum
         
         ### Timeframes Available
+        - **15 Minutes**: Uses 30 days of data for short-term analysis
         - **Daily**: Uses 500 days of data for mid-term analysis
         - **Hourly**: Uses 90 days of data for swing analysis
-        - **15 Minutes**: Uses 30 days of data for short-term analysis
         - **Weekly**: Uses 7 years of data for long-term analysis
         
         ### Important Notes
@@ -694,14 +700,15 @@ def main():
                 display_df = bullish_stocks[['Symbol', 'Company Name', 'Trend', 'Status']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
-                # Download button for bullish stocks - FIXED
+                # Download button for bullish stocks - FIXED EXCEL
                 excel_file = create_formatted_excel(bullish_stocks, f"bullish_stocks_{st.session_state.market}_{st.session_state.timeframe}")
                 if excel_file:
                     st.download_button(
                         label="📥 Download Bullish Stocks (Excel)",
-                        data=excel_file,
+                        data=excel_file.getvalue(),
                         file_name=f"bullish_stocks_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="download_bullish"
                     )
             else:
                 st.info("No stocks found with perfect bullish EMA alignment.")
@@ -712,28 +719,30 @@ def main():
                 display_df = bearish_stocks[['Symbol', 'Company Name', 'Trend', 'Status']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
-                # Download button for bearish stocks - FIXED
+                # Download button for bearish stocks - FIXED EXCEL
                 excel_file = create_formatted_excel(bearish_stocks, f"bearish_stocks_{st.session_state.market}_{st.session_state.timeframe}")
                 if excel_file:
                     st.download_button(
                         label="📥 Download Bearish Stocks (Excel)",
-                        data=excel_file,
+                        data=excel_file.getvalue(),
                         file_name=f"bearish_stocks_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="download_bearish"
                     )
             else:
                 st.info("No stocks found with perfect bearish EMA alignment.")
         
-        # Download all results button - FIXED
+        # Download all results button - FIXED EXCEL
         if not st.session_state.results_df.empty:
             st.subheader("Download All Results")
             excel_file = create_formatted_excel(st.session_state.results_df, f"ema_alignment_results_{st.session_state.market}_{st.session_state.timeframe}")
             if excel_file:
                 st.download_button(
                     label="📥 Download All Results (Excel)",
-                    data=excel_file,
+                    data=excel_file.getvalue(),
                     file_name=f"ema_alignment_results_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="download_all"
                 )
     
     elif 'last_scan_time' in st.session_state:
