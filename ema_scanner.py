@@ -9,7 +9,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill
 import re
 
-# Page configuration
+# Page configuration 
 st.set_page_config(
     page_title="EMA Alignment Scanner",
     page_icon="📊",
