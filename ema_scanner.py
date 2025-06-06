@@ -12,7 +12,7 @@ import re
 # Page configuration
 st.set_page_config(
     page_title="EMA Alignment Scanner",
-    page_icon="📈",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -333,10 +333,10 @@ def process_uploaded_stock_list(uploaded_file, market):
         # Remove empty entries
         stocks_df = stocks_df[(stocks_df['Symbol'].str.len() > 0) & (stocks_df['Company Name'].str.len() > 0)]
         
-        # Handle suffix based on symbol type
+        # Ensure proper formatting for Indian stocks (but not for indices starting with ^)
         if market == "India":
             stocks_df['Symbol'] = stocks_df['Symbol'].apply(
-                lambda x: x if (str(x).endswith('.NS') or str(x).startswith('^')) else f"{x}.NS"
+                lambda x: x if str(x).startswith('^') or str(x).endswith('.NS') else f"{x}.NS"
             )
         
         # Limit to 9999 stocks
@@ -387,7 +387,7 @@ def get_stock_data(symbol, timeframe):
 # Function to check EMA alignment
 def check_ema_alignment(df):
     if df is None or df.empty:
-        return None
+        return None, None
     
     # Get the latest values
     latest = df.iloc[-1]
@@ -404,11 +404,11 @@ def check_ema_alignment(df):
     is_bearish = (close_price < ema20 < ema50 < ema100 < ema200)
     
     if is_bullish:
-        return "Bullish"
+        return "Bullish", "🟢"
     elif is_bearish:
-        return "Bearish"
+        return "Bearish", "🔴"
     else:
-        return None
+        return None, None
 
 # Function to scan all stocks for EMA alignment
 def scan_ema_alignment(stock_list, timeframe, market):
@@ -431,7 +431,7 @@ def scan_ema_alignment(stock_list, timeframe, market):
             
         processed_count += 1
         
-        trend = check_ema_alignment(df)
+        trend, status_emoji = check_ema_alignment(df)
         
         if trend:  # Only add if bullish or bearish alignment found
             # Remove .NS suffix and ^ symbol for display
@@ -666,7 +666,7 @@ def main():
         - Upload Excel files with 'Symbol' and 'Company Name' columns
         - Maximum 9999 stocks per list and 50MB file size
         - For Indian stocks, .NS suffix is automatically handled
-        - For indices with ^ symbol, no .NS suffix is added
+        - For indices starting with ^, .NS suffix is not added
         """)
     
     # Display results
@@ -721,20 +721,19 @@ def main():
                     )
             else:
                 st.info("No stocks found with perfect bearish EMA alignment.")
-
-
-                # Download all results button - Excel format
-if not st.session_state.results_df.empty:
-   st.subheader("Download All Results")
-   excel_file = create_formatted_excel(st.session_state.results_df, f"all_ema_results_{st.session_state.market}_{st.session_state.timeframe}")
-   if excel_file:
-       st.download_button(
-           label="📥 Download All Results (Excel)",
-           data=excel_file.getvalue(),
-           file_name=f"all_ema_results_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-           key="download_all"
-       )
+        
+        # Download all results button - Excel format
+        if not st.session_state.results_df.empty:
+            st.subheader("Download All Results")
+            excel_file = create_formatted_excel(st.session_state.results_df, f"ema_alignment_results_{st.session_state.market}_{st.session_state.timeframe}")
+            if excel_file:
+                st.download_button(
+                    label="📥 Download All Results (Excel)",
+                    data=excel_file.getvalue(),
+                    file_name=f"ema_alignment_results_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="download_all"
+                )
     
     elif 'last_scan_time' in st.session_state:
         st.info("No stocks found with perfect EMA alignment. Try scanning with different parameters.")
