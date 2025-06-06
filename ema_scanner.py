@@ -270,9 +270,9 @@ def load_stock_lists():
             if column_mapping:
                 india_stocks = india_stocks.rename(columns=column_mapping)
         
-        # Ensure Indian stock symbols have .NS suffix for API calls
+        # Ensure Indian stock symbols have .NS suffix for API calls (except indices with ^)
         india_stocks['Symbol'] = india_stocks['Symbol'].apply(
-            lambda x: sanitize_symbol(x) if str(x).endswith('.NS') else f"{sanitize_symbol(x)}.NS"
+            lambda x: sanitize_symbol(x) if (str(x).endswith('.NS') or str(x).startswith('^')) else f"{sanitize_symbol(x)}.NS"
         )
     except Exception as e:
         st.warning(f"Failed to load India stocks Excel: {e}. Using default list.")
@@ -333,10 +333,10 @@ def process_uploaded_stock_list(uploaded_file, market):
         # Remove empty entries
         stocks_df = stocks_df[(stocks_df['Symbol'].str.len() > 0) & (stocks_df['Company Name'].str.len() > 0)]
         
-        # Ensure proper formatting for Indian stocks
+        # Ensure proper formatting for Indian stocks (but not for indices with ^)
         if market == "India":
             stocks_df['Symbol'] = stocks_df['Symbol'].apply(
-                lambda x: x if str(x).endswith('.NS') else f"{x}.NS"
+                lambda x: x if (str(x).endswith('.NS') or str(x).startswith('^')) else f"{x}.NS"
             )
         
         # Limit to 9999 stocks
@@ -364,8 +364,6 @@ def get_stock_data(symbol, timeframe):
         # Set period based on timeframe
         if timeframe == "1d":
             period = "500d"
-        elif timeframe == "15m":
-            period = "30d"
         elif timeframe == "1wk":
             period = "7y"
         else:  # 1h
@@ -444,7 +442,6 @@ def scan_ema_alignment(stock_list, timeframe, market):
                 'Symbol': display_symbol,
                 'Company Name': name,
                 'Trend': trend,
-                'Status': status_emoji,
                 'Original_Symbol': symbol  # Keep original for any further processing
             })
     
@@ -463,7 +460,7 @@ def create_formatted_excel(df, filename):
         return None
     
     # Create a copy of dataframe for export (without Original_Symbol)
-    export_df = df[['Symbol', 'Company Name', 'Trend', 'Status']].copy()
+    export_df = df[['Symbol', 'Company Name', 'Trend']].copy()
     
     # Create Excel file in memory
     output = io.BytesIO()
@@ -475,7 +472,7 @@ def create_formatted_excel(df, filename):
         worksheet.title = 'EMA Alignment Results'
         
         # Write headers
-        headers = ['Symbol', 'Company Name', 'Trend', 'Status']
+        headers = ['Symbol', 'Company Name', 'Trend']
         for col_num, header in enumerate(headers, 1):
             cell = worksheet.cell(row=1, column=col_num)
             cell.value = header
@@ -491,12 +488,7 @@ def create_formatted_excel(df, filename):
         for row_num, (_, row_data) in enumerate(export_df.iterrows(), 2):
             for col_num, value in enumerate(row_data, 1):
                 cell = worksheet.cell(row=row_num, column=col_num)
-                
-                # Set cell value
-                if col_num == 4:  # Status column
-                    cell.value = row_data['Trend']  # Use trend name instead of emoji
-                else:
-                    cell.value = value
+                cell.value = value
                 
                 # Apply formatting based on trend
                 if row_data['Trend'] == 'Bullish':
@@ -589,12 +581,11 @@ def main():
     
     # Timeframe selection 
     timeframe_options = {
-        "15 Minutes": "15m",
         "Daily": "1d",
         "Hourly": "1h",
         "Weekly": "1wk"
     }
-    timeframe_display = st.sidebar.selectbox("Select Timeframe", list(timeframe_options.keys()), index=1)  # Default to Daily
+    timeframe_display = st.sidebar.selectbox("Select Timeframe", list(timeframe_options.keys()), index=0)  # Default to Daily
     timeframe = timeframe_options[timeframe_display]
     
     # Scan button
@@ -660,7 +651,6 @@ def main():
         - Perfect bearish alignment indicates strong downward momentum
         
         ### Timeframes Available
-        - **15 Minutes**: Uses 30 days of data for short-term analysis
         - **Daily**: Uses 500 days of data for mid-term analysis
         - **Hourly**: Uses 90 days of data for swing analysis
         - **Weekly**: Uses 7 years of data for long-term analysis
@@ -669,13 +659,14 @@ def main():
         - All EMAs are calculated precisely using exponential weighting
         - Only stocks with perfect alignment are shown
         - Indian stock symbols display without .NS suffix in results
+        - Index symbols starting with ^ do not get .NS suffix added
         - Export files are formatted with color coding (Green for Bullish, Red for Bearish)
         - All data is sanitized for security
         
         ### Using Custom Stock Lists
         - Upload Excel files with 'Symbol' and 'Company Name' columns
         - Maximum 9999 stocks per list and 50MB file size
-        - For Indian stocks, .NS suffix is automatically handled
+        - For Indian stocks, .NS suffix is automatically handled (except for indices with ^)
         """)
     
     # Display results
@@ -696,7 +687,7 @@ def main():
         with tab1:
             if not bullish_stocks.empty:
                 st.subheader("Perfect Bullish EMA Alignment")
-                display_df = bullish_stocks[['Symbol', 'Company Name', 'Trend', 'Status']].copy()
+                display_df = bullish_stocks[['Symbol', 'Company Name', 'Trend']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
                 # Download button for bullish stocks - Excel format
@@ -715,7 +706,7 @@ def main():
         with tab2:
             if not bearish_stocks.empty:
                 st.subheader("Perfect Bearish EMA Alignment")
-                display_df = bearish_stocks[['Symbol', 'Company Name', 'Trend', 'Status']].copy()
+                display_df = bearish_stocks[['Symbol', 'Company Name', 'Trend']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
                 # Download button for bearish stocks - Excel format
