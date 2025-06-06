@@ -270,9 +270,9 @@ def load_stock_lists():
             if column_mapping:
                 india_stocks = india_stocks.rename(columns=column_mapping)
         
-        # Ensure Indian stock symbols have .NS suffix for API calls (except indices with ^)
+        # Ensure Indian stock symbols have .NS suffix for API calls
         india_stocks['Symbol'] = india_stocks['Symbol'].apply(
-            lambda x: sanitize_symbol(x) if (str(x).endswith('.NS') or str(x).startswith('^')) else f"{sanitize_symbol(x)}.NS"
+            lambda x: sanitize_symbol(x) if str(x).endswith('.NS') else f"{sanitize_symbol(x)}.NS"
         )
     except Exception as e:
         st.warning(f"Failed to load India stocks Excel: {e}. Using default list.")
@@ -333,7 +333,7 @@ def process_uploaded_stock_list(uploaded_file, market):
         # Remove empty entries
         stocks_df = stocks_df[(stocks_df['Symbol'].str.len() > 0) & (stocks_df['Company Name'].str.len() > 0)]
         
-        # Ensure proper formatting for Indian stocks (but not for indices with ^)
+        # Handle suffix based on symbol type
         if market == "India":
             stocks_df['Symbol'] = stocks_df['Symbol'].apply(
                 lambda x: x if (str(x).endswith('.NS') or str(x).startswith('^')) else f"{x}.NS"
@@ -387,7 +387,7 @@ def get_stock_data(symbol, timeframe):
 # Function to check EMA alignment
 def check_ema_alignment(df):
     if df is None or df.empty:
-        return None, None
+        return None
     
     # Get the latest values
     latest = df.iloc[-1]
@@ -404,11 +404,11 @@ def check_ema_alignment(df):
     is_bearish = (close_price < ema20 < ema50 < ema100 < ema200)
     
     if is_bullish:
-        return "Bullish", "🟢"
+        return "Bullish"
     elif is_bearish:
-        return "Bearish", "🔴"
+        return "Bearish"
     else:
-        return None, None
+        return None
 
 # Function to scan all stocks for EMA alignment
 def scan_ema_alignment(stock_list, timeframe, market):
@@ -431,7 +431,7 @@ def scan_ema_alignment(stock_list, timeframe, market):
             
         processed_count += 1
         
-        trend, status_emoji = check_ema_alignment(df)
+        trend = check_ema_alignment(df)
         
         if trend:  # Only add if bullish or bearish alignment found
             # Remove .NS suffix and ^ symbol for display
@@ -659,14 +659,14 @@ def main():
         - All EMAs are calculated precisely using exponential weighting
         - Only stocks with perfect alignment are shown
         - Indian stock symbols display without .NS suffix in results
-        - Index symbols starting with ^ do not get .NS suffix added
         - Export files are formatted with color coding (Green for Bullish, Red for Bearish)
         - All data is sanitized for security
         
         ### Using Custom Stock Lists
         - Upload Excel files with 'Symbol' and 'Company Name' columns
         - Maximum 9999 stocks per list and 50MB file size
-        - For Indian stocks, .NS suffix is automatically handled (except for indices with ^)
+        - For Indian stocks, .NS suffix is automatically handled
+        - For indices with ^ symbol, no .NS suffix is added
         """)
     
     # Display results
@@ -721,19 +721,20 @@ def main():
                     )
             else:
                 st.info("No stocks found with perfect bearish EMA alignment.")
-        
-        # Download all results button - Excel format
-        if not st.session_state.results_df.empty:
-            st.subheader("Download All Results")
-            excel_file = create_formatted_excel(st.session_state.results_df, f"ema_alignment_results_{st.session_state.market}_{st.session_state.timeframe}")
-            if excel_file:
-                st.download_button(
-                    label="📥 Download All Results (Excel)",
-                    data=excel_file.getvalue(),
-                    file_name=f"ema_alignment_results_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="download_all"
-                )
+
+
+                # Download all results button - Excel format
+if not st.session_state.results_df.empty:
+   st.subheader("Download All Results")
+   excel_file = create_formatted_excel(st.session_state.results_df, f"all_ema_results_{st.session_state.market}_{st.session_state.timeframe}")
+   if excel_file:
+       st.download_button(
+           label="📥 Download All Results (Excel)",
+           data=excel_file.getvalue(),
+           file_name=f"all_ema_results_{st.session_state.market}_{st.session_state.timeframe}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+           key="download_all"
+       )
     
     elif 'last_scan_time' in st.session_state:
         st.info("No stocks found with perfect EMA alignment. Try scanning with different parameters.")
