@@ -502,6 +502,12 @@ def create_formatted_excel(df, filename):
                 cell = worksheet.cell(row=row_num, column=col_num)
                 cell.value = value
                 
+                # Apply center alignment and cell protection for Date column (column 5)
+                if col_num == 5:  # Date column
+                    from openpyxl.styles import Alignment, Protection
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    cell.protection = Protection(locked=True)
+                
                 # Apply formatting based on trend
                 if row_data['Trend'] == 'Bullish':
                     cell.font = green_font
@@ -522,6 +528,10 @@ def create_formatted_excel(df, filename):
                     pass
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
+        
+        # Protect the worksheet to enable cell locking
+        worksheet.protection.sheet = True
+        worksheet.protection.password = "EMAScanner2025"
         
         # Save to BytesIO
         workbook.save(output)
