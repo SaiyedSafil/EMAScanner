@@ -189,7 +189,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
 # Define stock markets data
 us_indices = {
     'S&P 500': '^GSPC',
@@ -420,6 +419,17 @@ def scan_ema_alignment(stock_list, timeframe, market):
     total_stocks = len(stock_list)
     processed_count = 0
     
+    # Get current date for the Date column
+    current_date = datetime.now().strftime("%d-%m-%Y")
+    
+    # Map timeframe codes to display names
+    timeframe_display_map = {
+        "1d": "Daily",
+        "1h": "Hourly", 
+        "1wk": "Weekly"
+    }
+    timeframe_display = timeframe_display_map.get(timeframe, timeframe)
+    
     for i, (symbol, name) in enumerate(zip(stock_list['Symbol'], stock_list['Company Name'])):
         status_text.text(f"Scanning {market} stocks: {i+1}/{total_stocks} - {name} ({symbol})")
         progress_bar.progress((i + 1) / total_stocks)
@@ -442,6 +452,8 @@ def scan_ema_alignment(stock_list, timeframe, market):
                 'Symbol': display_symbol,
                 'Company Name': name,
                 'Trend': trend,
+                'Timeframe': timeframe_display,
+                'Date': current_date,
                 'Original_Symbol': symbol  # Keep original for any further processing
             })
     
@@ -460,7 +472,7 @@ def create_formatted_excel(df, filename):
         return None
     
     # Create a copy of dataframe for export (without Original_Symbol)
-    export_df = df[['Symbol', 'Company Name', 'Trend']].copy()
+    export_df = df[['Symbol', 'Company Name', 'Trend', 'Timeframe', 'Date']].copy()
     
     # Create Excel file in memory
     output = io.BytesIO()
@@ -472,7 +484,7 @@ def create_formatted_excel(df, filename):
         worksheet.title = 'EMA Alignment Results'
         
         # Write headers
-        headers = ['Symbol', 'Company Name', 'Trend']
+        headers = ['Symbol', 'Company Name', 'Trend', 'Timeframe', 'Date']
         for col_num, header in enumerate(headers, 1):
             cell = worksheet.cell(row=1, column=col_num)
             cell.value = header
@@ -687,7 +699,7 @@ def main():
         with tab1:
             if not bullish_stocks.empty:
                 st.subheader("Perfect Bullish EMA Alignment")
-                display_df = bullish_stocks[['Symbol', 'Company Name', 'Trend']].copy()
+                display_df = bullish_stocks[['Symbol', 'Company Name', 'Trend', 'Timeframe', 'Date']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
                 # Download button for bullish stocks - Excel format
@@ -706,7 +718,7 @@ def main():
         with tab2:
             if not bearish_stocks.empty:
                 st.subheader("Perfect Bearish EMA Alignment")
-                display_df = bearish_stocks[['Symbol', 'Company Name', 'Trend']].copy()
+                display_df = bearish_stocks[['Symbol', 'Company Name', 'Trend', 'Timeframe', 'Date']].copy()
                 st.dataframe(display_df, use_container_width=True)
                 
                 # Download button for bearish stocks - Excel format
